@@ -52,3 +52,35 @@ createdb insurance_db
 
 ### 5. Configure environment
 Create a `.env` file:
+
+DATABASE_URL=postgresql://localhost/insurance_db
+OLLAMA_BASE_URL=http://localhost:11434
+LLM_MODEL=llama3.2:3b
+EMBED_MODEL=nomic-embed-text
+CHROMA_DIR=./chroma_db
+UPLOAD_DIR=./uploads
+CREWAI_TRACING_ENABLED=false
+
+### 6. Run the app
+```bash
+# Terminal 1 — start Ollama
+ollama serve
+
+# Terminal 2 — start Flask
+python app.py
+```
+
+Open **http://127.0.0.1:5000** in your browser.
+
+## Usage
+1. Upload an insurance PDF using the sidebar
+2. Ask questions about the document in the chat
+3. The AI extracts and answers based on document contents
+
+## Architecture
+
+    User → Flask Web App → CrewAI Orchestrator
+                                ↓
+                        DocProcessor Agent
+                                ↓
+                  PyPDF2 → ChromaDB → Llama 3.2 3B
