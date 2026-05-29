@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Insurance AI Assistant</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="container">
+    <div class="sidebar">
+      <h2>Upload Document</h2>
+      <div class="upload-box" id="upload-box">
+        <p>Drop PDF here or click to upload</p>
+        <input type="file" id="file-input" accept=".pdf" hidden>
+      </div>
+      <div id="upload-status"></div>
+      <div class="extracted-panel">
+        <h3>Extracted Info</h3>
+        <div id="extracted-info">
+          <p class="muted">Upload a document to see extracted data</p>
+        </div>
+      </div>
+    </div>
+    <div class="chat-area">
+      <div class="chat-header">
+        <h1>Insurance AI Assistant</h1>
+      </div>
+      <div class="messages" id="messages"></div>
+      <div class="input-area">
+        <input type="text" id="user-input" placeholder="Ask about your insurance document..." />
+        <button id="send-btn">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const messagesEl = document.getElementById('messages');
+    const userInput = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
+    const fileInput = document.getElementById('file-input');
+    const uploadBox = document.getElementById('upload-box');
+    const uploadStatus = document.getElementById('upload-status');
+
+    // Load history on page load
+    async function loadHistory() {
+      const res = await fetch('/history');
+      const messages = await res.json();
+      messages.forEach(m => appendMessage(m.role, m.content));
+    }
+
+    function appendMessage(role, content) {
+      const div = document.createElement('div');
+      div.className = `message ${role}`;
+      div.innerHTML = `<div class="bubble">${content}</div>`;
+      messagesEl.appendChild(div);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    // Send message
+    async function sendMessage() {
+      const message = userInput.value.trim();
+      if (!message) return;
+      appendMessage('user', message);
+      userInput.value = '';
+      sendBtn.disabled = true;
+      sendBtn.textContent = 'Thinking...';
+      const res = await fetch('/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message })
+      });
+      const data = await res.json();
+      appendMessage('assistant', data.response);
+      sendBtn.disabled = false;
+      sendBtn.textContent = 'Send';
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    userInput.addEventListener('keypress', e => {
+      if (e.key === 'Enter') sendMessage();
+    });
+
+    // File upload
+    uploadBox.addEventListener('click', () => fileInput.click());
+    uploadBox.addEventListener('dragover', e => {
+      e.preventDefault();
+      uploadBox.classList.add('dragover');
+    });
+    uploadBox.addEventListener('dragleave', () => {
+      uploadBox.classList.remove('dragover');
+    });
+    uploadBox.addEventListener('drop', e => {
+      e.preventDefault();
+      uploadBox.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file) handleUpload(file);
+    });
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files[0]) handleUpload(fileInput.files[0]);
+    });
+
+    async function handleUpload(file) {
+      uploadStatus.textContent = 'Uploading...';
+      uploadStatus.className = 'status info';
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (data.status === 'ok') {
+        uploadStatus.textContent = `✓ ${data.filename} uploaded successfully`;
+        uploadStatus.className = 'status success';
+        document.getElementById('extracted-info').innerHTML = `<p>Document: <strong>${data.filename}</strong></p><p class="muted">Ask questions in the chat!</p>`;
+      } else {
+        uploadStatus.textContent = 'Upload failed';
+        uploadStatus.className = 'status error';
+      }
+    }
+
+    loadHistory();
+  </script>
+</body>
+</html>
